@@ -20,8 +20,8 @@
 </head>
 <body>
     <canvas id="canvas"></canvas>
-    <audio id="hitSound" src="hit.mp3" preload="auto"></audio> <!-- 碰撞音效 -->
-    <audio id="catchSound" src="catch.mp3" preload="auto"></audio> <!-- 捕获音效 -->
+    <audio id="hitSound" src="hit.mp3" preload="auto"></audio> <!-- 碰撞音效(并没有找到很好的音频所以并没有这个音效) -->
+    <audio id="catchSound" src="but.mp3" preload="auto"> </audio> <!-- 捕获音效 -->
     <script>
         const canvas = document.getElementById("canvas");
         const ctx = canvas.getContext("2d");
@@ -86,7 +86,7 @@
                 const dy = this.y - devilCircle.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
 
-                if (distance < this.size + devilCircle.size) {
+                if (distance < this.size + devilCircle.outerSize) { // 检查与外圈的碰撞
                     balls.splice(balls.indexOf(this), 1); // 移除被抓的球
                     score += this.scoreValue; // 更新分数
                     catchSound.play(); // 播放捕获音效
@@ -94,9 +94,30 @@
             }
         }
 
-        class DevilCircle extends Shape {
-            constructor(x, y, size, color) {
-                super(x, y, size, color);
+        class DevilCircle {
+            constructor(x, y, outerSize, innerSize) {
+                this.x = x;
+                this.y = y;
+                this.outerSize = outerSize; // 外圈半径
+                this.innerSize = innerSize; // 内圈半径
+                this.color = 'white'; // 颜色
+                this.isMovable = false; // 初始不可移动
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.outerSize, 0, 2 * Math.PI);
+                ctx.fill(); // 绘制外圈
+
+                ctx.fillStyle = '#000'; // 填充内圈为黑色
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.innerSize, 0, 2 * Math.PI);
+                ctx.fill(); // 绘制内圈
+            }
+
+            toggleMovable() {
+                this.isMovable = !this.isMovable; // 切换可移动状态
             }
         }
 
@@ -114,7 +135,7 @@
             balls.push(ball);
         }
 
-        const devilCircle = new DevilCircle(canvas.width / 2, canvas.height / 2, 30, 'red');
+        const devilCircle = new DevilCircle(canvas.width / 2, canvas.height / 2, 30, 15); // 调整外圈和内圈半径
 
         let score = 0; // 初始分数
         let timeLimit = 60; // 时间限制（秒）
@@ -126,29 +147,28 @@
             }
         }, 1000);
 
-        canvas.addEventListener('mousemove', (event) => {
-            devilCircle.x = event.clientX;
-            devilCircle.y = event.clientY;
+        canvas.addEventListener('click', (event) => {
+            const dx = event.clientX - devilCircle.x;
+            const dy = event.clientY - devilCircle.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // 检查点击是否在恶魔圈内
+            if (distance < devilCircle.outerSize) {
+                devilCircle.toggleMovable(); // 切换可移动状态
+            }
         });
 
-/*************  ✨ Codeium Command ⭐  *************/
-        /**
-         * 生成 min 到 max 之间的随机整数
-         * @param {number} min - 最小值
-         * @param {number} max - 最大值
-         * @returns {number} 介于 min 和 max 之间的随机整数
-         */
-/******  c6632404-e925-49f8-a51b-ae9a4d02a71a  *******/
+        canvas.addEventListener('mousemove', (event) => {
+            if (devilCircle.isMovable) {
+                devilCircle.x = event.clientX;
+                devilCircle.y = event.clientY;
+            }
+        });
+
         function random(min, max) {
             return Math.floor(Math.random() * (max - min)) + min;
         }
 
-/*************  ✨ Codeium Command ⭐  *************/
-        /**
-         * 生成随机颜色
-         * @returns {string} 形如 'rgb(0, 0, 0)' 的字符串
-         */
-/******  219bf3e1-dd08-4274-9c96-4723926d15c7  *******/
         function randomColor() {
             return `rgb(${random(0, 255)}, ${random(0, 255)}, ${random(0, 255)})`;
         }
@@ -178,6 +198,7 @@
             ctx.textAlign = "left"; // 文本左对齐
             ctx.fillText("分数: " + score, 20, 30); // 绘制文本
             ctx.fillText("剩余时间: " + timeLimit, 20, 60); // 绘制剩余时间
+            ctx.fillText("剩余小球: " + balls.length, canvas.width - 200, 30); // 绘制剩余小球
         }
 
         function loop() {
