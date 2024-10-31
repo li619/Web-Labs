@@ -20,51 +20,39 @@
 </head>
 <body>
     <canvas id="canvas"></canvas>
+    <audio id="hitSound" src="hit.mp3" preload="auto"></audio> <!-- 碰撞音效 -->
+    <audio id="catchSound" src="catch.mp3" preload="auto"></audio> <!-- 捕获音效 -->
     <script>
         const canvas = document.getElementById("canvas");
         const ctx = canvas.getContext("2d");
+        const hitSound = document.getElementById("hitSound");
+        const catchSound = document.getElementById("catchSound");
 
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        class Ball {
-            constructor(x, y, velX, velY, color, size) {
+        class Shape {
+            constructor(x, y, size, color) {
                 this.x = x;
                 this.y = y;
-                this.velX = velX;
-                this.velY = velY;
-                this.color = color;
                 this.size = size;
-                this.collisionEffect = false; // 碰撞效果标志
+                this.color = color;
             }
 
             draw() {
-                if (this.collisionEffect) {
-                    this.drawCollisionEffect(); // 绘制碰撞效果
-                }
-                this.drawGlow(); // 绘制光晕
-                ctx.beginPath();
                 ctx.fillStyle = this.color;
+                ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, 2 * Math.PI);
                 ctx.fill();
             }
+        }
 
-            drawGlow() {
-                const glowGradient = ctx.createRadialGradient(this.x, this.y, this.size, this.x, this.y, this.size * 2);
-                glowGradient.addColorStop(0, this.color);
-                glowGradient.addColorStop(1, 'rgba(255, 255, 255, 0)'); // 透明
-                ctx.fillStyle = glowGradient;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size * 2, 0, 2 * Math.PI);
-                ctx.fill();
-            }
-
-            drawCollisionEffect() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size * 3, 0, 2 * Math.PI);
-                ctx.strokeStyle = this.color;
-                ctx.lineWidth = 2;
-                ctx.stroke();
+        class Ball extends Shape {
+            constructor(x, y, velX, velY, color, size) {
+                super(x, y, size, color);
+                this.velX = velX;
+                this.velY = velY;
+                this.scoreValue = size; // 根据大小设置分值
             }
 
             update() {
@@ -79,7 +67,7 @@
                 this.y += this.velY * 1.5; // 加快速度
             }
 
-            collisionDetect(balls) {
+            collisionDetect(balls, devilCircle) {
                 for (let ball of balls) {
                     if (this !== ball) {
                         const dx = this.x - ball.x;
@@ -89,11 +77,26 @@
                         if (distance < this.size + ball.size) {
                             this.color = randomColor();
                             ball.color = randomColor();
-                            this.collisionEffect = true; // 触发碰撞效果
-                            setTimeout(() => { this.collisionEffect = false; }, 200); // 碰撞效果持续200毫秒
+                            hitSound.play(); // 播放碰撞音效
                         }
                     }
                 }
+
+                const dx = this.x - devilCircle.x;
+                const dy = this.y - devilCircle.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < this.size + devilCircle.size) {
+                    balls.splice(balls.indexOf(this), 1); // 移除被抓的球
+                    score += this.scoreValue; // 更新分数
+                    catchSound.play(); // 播放捕获音效
+                }
+            }
+        }
+
+        class DevilCircle extends Shape {
+            constructor(x, y, size, color) {
+                super(x, y, size, color);
             }
         }
 
@@ -111,10 +114,41 @@
             balls.push(ball);
         }
 
+        const devilCircle = new DevilCircle(canvas.width / 2, canvas.height / 2, 30, 'red');
+
+        let score = 0; // 初始分数
+        let timeLimit = 60; // 时间限制（秒）
+        let timer = setInterval(() => {
+            timeLimit--;
+            if (timeLimit <= 0) {
+                clearInterval(timer);
+                alert("时间到！你的分数是：" + score);
+            }
+        }, 1000);
+
+        canvas.addEventListener('mousemove', (event) => {
+            devilCircle.x = event.clientX;
+            devilCircle.y = event.clientY;
+        });
+
+/*************  ✨ Codeium Command ⭐  *************/
+        /**
+         * 生成 min 到 max 之间的随机整数
+         * @param {number} min - 最小值
+         * @param {number} max - 最大值
+         * @returns {number} 介于 min 和 max 之间的随机整数
+         */
+/******  c6632404-e925-49f8-a51b-ae9a4d02a71a  *******/
         function random(min, max) {
             return Math.floor(Math.random() * (max - min)) + min;
         }
 
+/*************  ✨ Codeium Command ⭐  *************/
+        /**
+         * 生成随机颜色
+         * @returns {string} 形如 'rgb(0, 0, 0)' 的字符串
+         */
+/******  219bf3e1-dd08-4274-9c96-4723926d15c7  *******/
         function randomColor() {
             return `rgb(${random(0, 255)}, ${random(0, 255)}, ${random(0, 255)})`;
         }
@@ -139,10 +173,11 @@
         }
 
         function drawText() {
-            ctx.fillStyle = randomColor(); // 彩色文本
-            ctx.font = "bold 48px PingFangSC"; // 设置字体和大小
-            ctx.textAlign = "center"; // 文本居中
-            ctx.fillText("弹球", canvas.width / 2, 100); // 绘制文本
+            ctx.fillStyle = 'white'; // 计分器文本
+            ctx.font = "bold 24px PingFangSC"; // 设置字体和大小
+            ctx.textAlign = "left"; // 文本左对齐
+            ctx.fillText("分数: " + score, 20, 30); // 绘制文本
+            ctx.fillText("剩余时间: " + timeLimit, 20, 60); // 绘制剩余时间
         }
 
         function loop() {
@@ -152,10 +187,11 @@
             for (let ball of balls) {
                 ball.draw();
                 ball.update();
-                ball.collisionDetect(balls);
+                ball.collisionDetect(balls, devilCircle);
             }
 
-            drawText(); // 绘制彩色文本
+            devilCircle.draw(); // 绘制恶魔圈
+            drawText(); // 绘制计分器文本
 
             requestAnimationFrame(loop);
         }
